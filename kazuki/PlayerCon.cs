@@ -46,6 +46,7 @@ public class PlayerCon : MonoBehaviour
 
             // 方向キーの入力値とカメラの向きから、移動方向を決定
             Vector3 moveForward = cameraForward * _verticalInput + Camera.main.transform.right * _horizontalInput;
+            moveForward = moveForward.normalized;
 
             // 移動方向にスピードを掛ける。ジャンプや落下がある場合は、別途Y軸方向の速度ベクトルを足す。
             _rb.velocity = moveForward * _playerMoveSpeed;
