@@ -4,35 +4,52 @@ using UnityEngine;
 
 public class PlayerCon : MonoBehaviour
 {
+    [Tooltip("プレイヤーの移動速度")]
     [SerializeField] float _playerMoveSpeed = 0f;
+    [Tooltip("重力の設定")]
     [SerializeField] Vector3 _playerGravity = new Vector3(0, -9.81f, 0);
+
+    [Header("コンポーネント取得")]
+    [SerializeField] Camera _padCamera;
+    [SerializeField] GameObject _PadCanvas;
+    GameObject _virtualCamera;
     Rigidbody _rb;
     private float _horizontalInput = 0;
     private float _verticalInput = 0;
-    private bool _isMouseOn = false;
+    private bool _isMouseOn = false; // マウスの表示切替のbool
+    private bool _isPadOpen = false; // パッド切替のbool
 
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _rb.useGravity = false;
+        _virtualCamera = GameObject.FindGameObjectWithTag("Virtual Camera");
     }
 
     private void Start()
     {
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        // 初期化処理
+        _rb.useGravity = false; // Rigidbodyの重力オフ
+        Cursor.visible = false; // マウスの非表示
+        Cursor.lockState = CursorLockMode.Locked; // マウスの中心固定
+        _padCamera.enabled = false; // パッドカメラをオフに
+        _PadCanvas.SetActive(false); // パッドキャンバスをオフに
     }
 
     private void Update()
     {
+        // プレイヤーの移動処理
         PlayerMove();
 
+        // マウスの表示処理
         MouseDisplay();
+
+        // パッド画面の表示切替
+        PadOpen();
     }
 
     private void FixedUpdate()
     {
-        _rb.AddForce(_playerGravity, ForceMode.Acceleration);
+        _rb.AddForce(_playerGravity, ForceMode.Acceleration); // 重力処理
     }
 
     /// <summary>
@@ -43,6 +60,7 @@ public class PlayerCon : MonoBehaviour
         _horizontalInput = Input.GetAxisRaw("Horizontal");
         _verticalInput = Input.GetAxisRaw("Vertical");
 
+        // 入力しているとき
         if (_horizontalInput != 0 || _verticalInput != 0)
         {
             // カメラの方向から、X-Z平面の単位ベクトルを取得
@@ -68,21 +86,50 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void MouseDisplay()
     {
+        // ESCキーを押すとマウスの表示切替
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             _isMouseOn = !_isMouseOn;
         }
 
         // マウスの表示処理
-        if (_isMouseOn)
+        if (_isMouseOn) // 表示
         {
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
         }
-        else
+        else // 非表示
         {
             Cursor.visible = false;
             Cursor.lockState = CursorLockMode.Locked;
+        }
+    }
+
+    /// <summary>
+    /// パッド画面の表示切替
+    /// </summary>
+    private void PadOpen()
+    {
+        // Eキーを押すとパッド画面切替
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (!_isPadOpen) // 表示
+            {
+                _padCamera.enabled = true;
+                _virtualCamera.SetActive(false);
+                _PadCanvas.SetActive(true);
+                Camera.main.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+                _isMouseOn = true;
+            }
+            else // 非表示
+            {
+                _padCamera.enabled = false;
+                _virtualCamera.SetActive(true);
+                _PadCanvas.SetActive(false);
+                _isMouseOn = false;
+            }
+
+            _isPadOpen = !_isPadOpen; // パッド切替のbool切替
         }
     }
 }
