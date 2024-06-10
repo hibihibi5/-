@@ -9,6 +9,7 @@ public class PlayerCon : MonoBehaviour
     Rigidbody _rb;
     private float _horizontalInput = 0;
     private float _verticalInput = 0;
+    private bool _isMouseOn = false;
 
     private void Awake()
     {
@@ -34,6 +35,9 @@ public class PlayerCon : MonoBehaviour
         _rb.AddForce(_playerGravity, ForceMode.Acceleration);
     }
 
+    /// <summary>
+    /// プレイヤーの移動処理
+    /// </summary>
     private void PlayerMove()
     {
         _horizontalInput = Input.GetAxisRaw("Horizontal");
@@ -59,12 +63,26 @@ public class PlayerCon : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// マウスの表示処理
+    /// </summary>
     private void MouseDisplay()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            _isMouseOn = !_isMouseOn;
+        }
+
+        // マウスの表示処理
+        if (_isMouseOn)
+        {
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
+        }
+        else
+        {
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
         }
     }
 }
