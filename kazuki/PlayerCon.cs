@@ -10,10 +10,13 @@ public class PlayerCon : MonoBehaviour
     [SerializeField] Vector3 _playerGravity = new Vector3(0, -9.81f, 0);
     [Tooltip("端末画面のTimeScale")]
     [SerializeField, Range(0, 1)] float _timeScale = default;
+    [Tooltip("プレイヤーの回転速度")]
+    [SerializeField] float _rotationSpeed = 600;
 
     [Header("コンポーネント取得")]
     [SerializeField] Camera _terminalCamera;
     [SerializeField] Canvas _terminalCanvas;
+    [SerializeField] Canvas _mainCanvas;
     [SerializeField] Animator _attackAnime;
 
     GameObject _virtualCamera;
@@ -24,6 +27,7 @@ public class PlayerCon : MonoBehaviour
 
     private float _horizontalInput = 0;
     private float _verticalInput = 0;
+    private float _rotationSpeedCount = 0;
     private bool _isMouseOn = false; // マウスの表示切替のbool
     private bool _isTerminalOpen = false; // パッド切替のbool
 
@@ -53,12 +57,13 @@ public class PlayerCon : MonoBehaviour
         // プレイヤーの移動処理
         PlayerMove();
 
-        // マウスの表示処理
-        MouseDisplay();
+        //// マウスの表示処理
+        //MouseDisplay();
 
         // 端末画面の表示切替
         PadOpen();
 
+        // 攻撃処理
         AttackCon();
     }
 
@@ -72,10 +77,13 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void PlayerMove()
     {
-        _horizontalInput = Input.GetAxisRaw("Horizontal");
-        _verticalInput = Input.GetAxisRaw("Vertical");
+        if (!_isTerminalOpen)
+        {
+            _horizontalInput = Input.GetAxisRaw("Horizontal");
+            _verticalInput = Input.GetAxisRaw("Vertical");
+        }
 
-        var rotationSpeed = 600 * Time.deltaTime;
+        _rotationSpeedCount = _rotationSpeed * Time.deltaTime;
 
         // 入力しているとき
         if (_horizontalInput != 0 || _verticalInput != 0)
@@ -95,7 +103,31 @@ public class PlayerCon : MonoBehaviour
             {
                 _targetQuaternion = Quaternion.LookRotation(moveForward);
             }
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetQuaternion, rotationSpeed); // 回転速度の制限
+        }
+
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetQuaternion, _rotationSpeedCount); // 回転速度の制限
+    }
+
+    /// <summary>
+    /// 端末画面の表示切替
+    /// </summary>
+    private void PadOpen()
+    {
+        // Eキーを押すと端末画面切替
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            // アクティブ状態の切替
+            _terminalCamera.enabled = !_terminalCamera.enabled; // カメラ
+            _mainCanvas.enabled = !_mainCanvas.enabled; // メインキャンバス
+            _terminalCanvas.enabled = !_terminalCanvas.enabled; // 端末キャンバス
+            _virtualCamera.SetActive(!_virtualCamera.activeSelf); // カメラのコントロール
+            Time.timeScale = Time.timeScale == 1  ? Time.timeScale = _timeScale : Time.timeScale = 1; // TimeScale
+            _isMouseOn = !_isMouseOn; // マウスの表示
+            MouseDisplay();
+            _isTerminalOpen = !_isTerminalOpen; // 端末画面切替のbool
+
+            _horizontalInput = 0;
+            _verticalInput = 0;
         }
     }
 
@@ -104,11 +136,11 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void MouseDisplay()
     {
-        // ESCキーを押すとマウスの表示切替
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            _isMouseOn = !_isMouseOn;
-        }
+        ////ESCキーを押すとマウスの表示切替
+        //if (Input.GetKeyDown(KeyCode.Escape))
+        //{
+        //    _isMouseOn = !_isMouseOn;
+        //}
 
         // マウスの表示処理
         if (_isMouseOn) // 表示
@@ -124,39 +156,11 @@ public class PlayerCon : MonoBehaviour
     }
 
     /// <summary>
-    /// 端末画面の表示切替
+    /// 攻撃処理
     /// </summary>
-    private void PadOpen()
-    {
-        // Eキーを押すと端末画面切替
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            if (!_isTerminalOpen) // 表示
-            {
-                Time.timeScale = _timeScale;
-                _terminalCamera.enabled = true;
-                _terminalCanvas.enabled = true;
-                _terminalCanvas.gameObject.GetComponent<TerminalCon>().enabled = true;
-                _virtualCamera.SetActive(false);
-                Camera.main.transform.rotation = Quaternion.Euler(Vector3.zero);
-                _isMouseOn = true;
-            }
-            else // 非表示
-            {
-                Time.timeScale = 1;
-                _virtualCamera.SetActive(true);
-                _terminalCamera.enabled = false;
-                _terminalCanvas.enabled = false;
-                _terminalCanvas.gameObject.GetComponent<TerminalCon>().enabled = false;
-                _isMouseOn = false;
-            }
-
-            _isTerminalOpen = !_isTerminalOpen; // 端末画面切替のbool切替
-        }
-    }
-
     private void AttackCon()
     {
+        // 端末画面ではない状態で左クリックを押すと
         if (!_isTerminalOpen && Input.GetMouseButtonDown(0))
         {
             _attackAnime.SetTrigger("Attack");
