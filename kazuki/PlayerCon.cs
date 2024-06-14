@@ -21,12 +21,14 @@ public class PlayerCon : MonoBehaviour
 
     GameObject _virtualCamera;
     Rigidbody _rb;
+    Animator _anime;
     Quaternion _targetQuaternion; // 回転制御用
 
     #region variable
 
     private float _horizontalInput = 0;
     private float _verticalInput = 0;
+    private float _inputSpeed = default;
     private float _rotationSpeedCount = 0;
     private bool _isMouseOn = false; // マウスの表示切替のbool
     private bool _isTerminalOpen = false; // パッド切替のbool
@@ -37,6 +39,7 @@ public class PlayerCon : MonoBehaviour
     {
         _rb = GetComponent<Rigidbody>();
         _virtualCamera = GameObject.FindGameObjectWithTag("Virtual Camera");
+        _anime = this.gameObject.GetComponent<Animator>();
     }
 
     private void Start()
@@ -57,11 +60,11 @@ public class PlayerCon : MonoBehaviour
         // プレイヤーの移動処理
         PlayerMove();
 
-        //// マウスの表示処理
-        //MouseDisplay();
+        // マウスの表示処理
+        MouseDisplay();
 
         // 端末画面の表示切替
-        PadOpen();
+        TerminalOpen();
 
         // 攻撃処理
         AttackCon();
@@ -103,15 +106,25 @@ public class PlayerCon : MonoBehaviour
             {
                 _targetQuaternion = Quaternion.LookRotation(moveForward);
             }
+
+            _inputSpeed = Mathf.Max(Mathf.Abs(_horizontalInput), Mathf.Abs(_verticalInput));
+        }
+        else
+        {
+            if (_inputSpeed > 0)
+            {
+                _inputSpeed -= Time.deltaTime;
+            }
         }
 
+        _anime.SetFloat("Speed", _inputSpeed); // 移動アニメーションの再生
         transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetQuaternion, _rotationSpeedCount); // 回転速度の制限
     }
 
     /// <summary>
     /// 端末画面の表示切替
     /// </summary>
-    private void PadOpen()
+    private void TerminalOpen()
     {
         // Eキーを押すと端末画面切替
         if (Input.GetKeyDown(KeyCode.E))
@@ -136,11 +149,13 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void MouseDisplay()
     {
-        ////ESCキーを押すとマウスの表示切替
-        //if (Input.GetKeyDown(KeyCode.Escape))
-        //{
-        //    _isMouseOn = !_isMouseOn;
-        //}
+        //Pキーを押すとマウスの表示切替
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            _isMouseOn = !_isMouseOn;
+            //tamina
+            //vi camera
+        }
 
         // マウスの表示処理
         if (_isMouseOn) // 表示

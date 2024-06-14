@@ -11,6 +11,7 @@ public class TerminalCon : MonoBehaviour
 
     [SerializeField] ButtonClass[] _buttonClass = new ButtonClass[4];
 
+    [Header("コンポーネント取得")]
     [Tooltip("メイン画面のポイント表示テキスト")]
     [SerializeField] Text _mainPointText = default;
     [Tooltip ("コストの貯まる速さ")]
