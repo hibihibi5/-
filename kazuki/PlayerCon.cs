@@ -12,6 +12,8 @@ public class PlayerCon : MonoBehaviour
     [SerializeField, Range(0, 1)] float _timeScale = default;
     [Tooltip("プレイヤーの回転速度")]
     [SerializeField] float _rotationSpeed = 600;
+    [Tooltip("攻撃時のプレイヤーの移動速度")]
+    [SerializeField] float _setAttackMoveSpeed = 0.4f;
 
     [Header("コンポーネント取得")]
     [SerializeField] Camera _terminalCamera;
@@ -21,15 +23,17 @@ public class PlayerCon : MonoBehaviour
 
     GameObject _virtualCamera;
     Rigidbody _rb;
-    Animator _anime;
+    Animator _PlayerAnime;
     Quaternion _targetQuaternion; // 回転制御用
 
     #region variable
 
+    private Vector3 _moveForward = default;
     private float _horizontalInput = 0;
     private float _verticalInput = 0;
     private float _inputSpeed = default;
     private float _rotationSpeedCount = 0;
+    private float _attackMoveSpeed = 1;
     private bool _isMouseOn = false; // マウスの表示切替のbool
     private bool _isTerminalOpen = false; // パッド切替のbool
 
@@ -39,7 +43,7 @@ public class PlayerCon : MonoBehaviour
     {
         _rb = GetComponent<Rigidbody>();
         _virtualCamera = GameObject.FindGameObjectWithTag("Virtual Camera");
-        _anime = this.gameObject.GetComponent<Animator>();
+        _PlayerAnime = this.gameObject.GetComponent<Animator>();
     }
 
     private void Start()
@@ -95,29 +99,32 @@ public class PlayerCon : MonoBehaviour
             Vector3 cameraForward = Vector3.Scale(Camera.main.transform.forward, new Vector3(1, 0, 1)).normalized;
 
             // 方向キーの入力値とカメラの向きから、移動方向を決定
-            Vector3 moveForward = cameraForward * _verticalInput + Camera.main.transform.right * _horizontalInput;
-            moveForward = moveForward.normalized;
+            _moveForward = cameraForward * _verticalInput + Camera.main.transform.right * _horizontalInput;
+            _moveForward = _moveForward.normalized;
 
-            // 移動方向にスピードを掛ける。ジャンプや落下がある場合は、別途Y軸方向の速度ベクトルを足す。
-            _rb.velocity = moveForward * _playerMoveSpeed;
+            // 移動方向にスピードを掛ける。
+            _rb.velocity = _moveForward * _playerMoveSpeed * _attackMoveSpeed;
 
             // キャラクターの向きを進行方向に
-            if (moveForward != Vector3.zero)
+            if (_moveForward != Vector3.zero)
             {
-                _targetQuaternion = Quaternion.LookRotation(moveForward);
+                _targetQuaternion = Quaternion.LookRotation(_moveForward);
             }
 
-            _inputSpeed = Mathf.Max(Mathf.Abs(_horizontalInput), Mathf.Abs(_verticalInput));
+            if (_inputSpeed < 1)
+            {
+                _inputSpeed += Time.deltaTime * 2f;
+            }
         }
         else
         {
             if (_inputSpeed > 0)
             {
-                _inputSpeed -= Time.deltaTime;
+                _inputSpeed -= Time.deltaTime * 2f;
             }
         }
 
-        _anime.SetFloat("Speed", _inputSpeed); // 移動アニメーションの再生
+        _PlayerAnime.SetFloat("Speed", _inputSpeed); // 移動アニメーションの再生
         transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetQuaternion, _rotationSpeedCount); // 回転速度の制限
     }
 
@@ -178,7 +185,20 @@ public class PlayerCon : MonoBehaviour
         // 端末画面ではない状態で左クリックを押すと
         if (!_isTerminalOpen && Input.GetMouseButtonDown(0))
         {
-            _attackAnime.SetTrigger("Attack");
+            _isTerminalOpen = true;
+            _attackAnime.SetBool("Attack", true);
+            _PlayerAnime.SetBool("attack", true);
+
+            _attackMoveSpeed = _setAttackMoveSpeed;
         }
+    }
+
+    public void AttackEnd()
+    {
+        _attackAnime.SetBool("Attack", false);
+        _PlayerAnime.SetBool("attack", false);
+        _isTerminalOpen = false;
+
+        _attackMoveSpeed = 1;
     }
 }

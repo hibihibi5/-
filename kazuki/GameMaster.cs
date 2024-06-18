@@ -29,7 +29,6 @@ public class GameMaster : MonoBehaviour
         {
             _timeRimit -= Time.deltaTime;
             _timeRimitText.text = _timeRimit.ToString("F0");
-            print("i");
         }
         else
         {
