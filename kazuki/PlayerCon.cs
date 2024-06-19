@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class PlayerCon : MonoBehaviour
 {
+    [Header("変数の指定")]
     [Tooltip("プレイヤーの移動速度")]
     [SerializeField] float _playerMoveSpeed = 0f;
     [Tooltip("重力の設定")]
@@ -11,15 +12,15 @@ public class PlayerCon : MonoBehaviour
     [Tooltip("端末画面のTimeScale")]
     [SerializeField, Range(0, 1)] float _timeScale = default;
     [Tooltip("プレイヤーの回転速度")]
-    [SerializeField] float _rotationSpeed = 600;
+    [SerializeField] float _rotationSpeed = 900f;
     [Tooltip("攻撃時のプレイヤーの移動速度")]
-    [SerializeField] float _setAttackMoveSpeed = 0.4f;
+    [SerializeField, Range(0, 1)] float _setAttackMoveSpeed = 0.4f;
 
     [Header("コンポーネント取得")]
+    [SerializeField] GameMaster _gameMaster;
     [SerializeField] Camera _terminalCamera;
     [SerializeField] Canvas _terminalCanvas;
     [SerializeField] Canvas _mainCanvas;
-    [SerializeField] Animator _attackAnime;
 
     GameObject _virtualCamera;
     Rigidbody _rb;
@@ -35,7 +36,7 @@ public class PlayerCon : MonoBehaviour
     private float _rotationSpeedCount = 0;
     private float _attackMoveSpeed = 1;
     private bool _isMouseOn = false; // マウスの表示切替のbool
-    private bool _isTerminalOpen = false; // パッド切替のbool
+    private bool _isTerminalOpen = false; // 端末切替のbool
 
     #endregion
 
@@ -65,7 +66,7 @@ public class PlayerCon : MonoBehaviour
         PlayerMove();
 
         // マウスの表示処理
-        MouseDisplay();
+        //MouseDisplay();
 
         // 端末画面の表示切替
         TerminalOpen();
@@ -134,20 +135,40 @@ public class PlayerCon : MonoBehaviour
     private void TerminalOpen()
     {
         // Eキーを押すと端末画面切替
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKeyDown(KeyCode.E) && (Time.timeScale != 0))
         {
-            // アクティブ状態の切替
-            _terminalCamera.enabled = !_terminalCamera.enabled; // カメラ
-            _mainCanvas.enabled = !_mainCanvas.enabled; // メインキャンバス
-            _terminalCanvas.enabled = !_terminalCanvas.enabled; // 端末キャンバス
-            _virtualCamera.SetActive(!_virtualCamera.activeSelf); // カメラのコントロール
-            Time.timeScale = Time.timeScale == 1  ? Time.timeScale = _timeScale : Time.timeScale = 1; // TimeScale
-            _isMouseOn = !_isMouseOn; // マウスの表示
-            MouseDisplay();
-            _isTerminalOpen = !_isTerminalOpen; // 端末画面切替のbool
+            if (!_isTerminalOpen) // アクティブ状態
+            {
+                _isTerminalOpen = true;
+                _gameMaster.GetTerminalOpen(_isTerminalOpen); // 端末状態の送信
+                _gameMaster.TerminalTime(); // 時間の速度低下
 
-            _horizontalInput = 0;
-            _verticalInput = 0;
+                // on
+                _terminalCamera.enabled = true; // カメラ
+                _terminalCanvas.enabled = true; // 端末キャンバス
+                _isMouseOn = true;
+                MouseDisplay();
+                // off
+                _mainCanvas.enabled = false; // メインキャンバス
+                _virtualCamera.SetActive(false); // カメラのコントロール
+                _horizontalInput = 0;
+                _verticalInput = 0;
+            }
+            else // 非アクティブ状態
+            {
+                _isTerminalOpen = false;
+                _gameMaster.GetTerminalOpen(_isTerminalOpen); // 端末状態の送信
+                _gameMaster.NormalTime(); // 時間の基本状態に
+
+                // on
+                _mainCanvas.enabled = true; // メインキャンバス
+                _virtualCamera.SetActive(true); // カメラのコントロール
+                // off
+                _terminalCamera.enabled = false; // カメラ
+                _terminalCanvas.enabled = false; // 端末キャンバス
+                _isMouseOn = false;
+                MouseDisplay();
+            }
         }
     }
 
@@ -156,13 +177,11 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void MouseDisplay()
     {
-        //Pキーを押すとマウスの表示切替
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            _isMouseOn = !_isMouseOn;
-            //tamina
-            //vi camera
-        }
+        ////Pキーを押すとマウスの表示切替
+        //if (Input.GetKeyDown(KeyCode.P))
+        //{
+        //    _isMouseOn = !_isMouseOn;
+        //}
 
         // マウスの表示処理
         if (_isMouseOn) // 表示
@@ -186,16 +205,17 @@ public class PlayerCon : MonoBehaviour
         if (!_isTerminalOpen && Input.GetMouseButtonDown(0))
         {
             _isTerminalOpen = true;
-            _attackAnime.SetBool("Attack", true);
             _PlayerAnime.SetBool("attack", true);
 
             _attackMoveSpeed = _setAttackMoveSpeed;
         }
     }
 
+    /// <summary>
+    /// 攻撃の終了処理
+    /// </summary>
     public void AttackEnd()
     {
-        _attackAnime.SetBool("Attack", false);
         _PlayerAnime.SetBool("attack", false);
         _isTerminalOpen = false;
 
