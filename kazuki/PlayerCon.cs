@@ -6,15 +6,20 @@ public class PlayerCon : MonoBehaviour
 {
     [Header("変数の指定")]
     [Tooltip("プレイヤーの移動速度")]
-    [SerializeField] float _playerMoveSpeed = 0f;
+    [SerializeField] float _playerMoveSpeed = 15f;
     [Tooltip("重力の設定")]
-    [SerializeField] Vector3 _playerGravity = new Vector3(0, -9.81f, 0);
+    [SerializeField] Vector3 _playerGravity = new Vector3(0, -200f, 0);
     [Tooltip("端末画面のTimeScale")]
-    [SerializeField, Range(0, 1)] float _timeScale = default;
+    [SerializeField, Range(0, 1)] float _timeScale = 0.2f;
     [Tooltip("プレイヤーの回転速度")]
     [SerializeField] float _rotationSpeed = 900f;
     [Tooltip("攻撃時のプレイヤーの移動速度")]
-    [SerializeField, Range(0, 1)] float _setAttackMoveSpeed = 0.4f;
+    [SerializeField, Range(0, 1)] float _setAttackMoveSpeed = 0.5f;
+    [Tooltip("ねばねば床での速度")]
+    [SerializeField, Range(0, 1)] float _nebanebaSpeed = 0.4f;
+    [Tooltip("移動アニメーションの変化の速度")]
+    [SerializeField] float _moveAnimeChegeSpeed = 1;
+
 
     [Header("コンポーネント取得")]
     [SerializeField] GameMaster _gameMaster;
@@ -29,12 +34,14 @@ public class PlayerCon : MonoBehaviour
 
     #region variable
 
+    private const int ONE = 1;
     private Vector3 _moveForward = default;
     private float _horizontalInput = 0;
     private float _verticalInput = 0;
     private float _inputSpeed = default;
     private float _rotationSpeedCount = 0;
     private float _attackMoveSpeed = 1;
+    private float _externalSpeed = 1;
     private bool _isMouseOn = false; // マウスの表示切替のbool
     private bool _isTerminalOpen = false; // 端末切替のbool
 
@@ -80,6 +87,19 @@ public class PlayerCon : MonoBehaviour
         _rb.AddForce(_playerGravity, ForceMode.Acceleration); // 重力処理
     }
 
+    private void OnTriggerStay(Collider other)
+    {
+        if (other.gameObject.CompareTag("Nebaneba"))
+        {
+            _externalSpeed = _nebanebaSpeed;
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        _externalSpeed = ONE;
+    }
+
     /// <summary>
     /// プレイヤーの移動処理
     /// </summary>
@@ -104,7 +124,7 @@ public class PlayerCon : MonoBehaviour
             _moveForward = _moveForward.normalized;
 
             // 移動方向にスピードを掛ける。
-            _rb.velocity = _moveForward * _playerMoveSpeed * _attackMoveSpeed;
+            _rb.velocity = _moveForward * _playerMoveSpeed * _attackMoveSpeed * _externalSpeed;
 
             // キャラクターの向きを進行方向に
             if (_moveForward != Vector3.zero)
@@ -114,14 +134,14 @@ public class PlayerCon : MonoBehaviour
 
             if (_inputSpeed < 1)
             {
-                _inputSpeed += Time.deltaTime * 2f;
+                _inputSpeed += Time.deltaTime * _moveAnimeChegeSpeed;
             }
         }
         else
         {
             if (_inputSpeed > 0)
             {
-                _inputSpeed -= Time.deltaTime * 2f;
+                _inputSpeed -= Time.deltaTime * _moveAnimeChegeSpeed;
             }
         }
 
@@ -219,6 +239,6 @@ public class PlayerCon : MonoBehaviour
         _PlayerAnime.SetBool("attack", false);
         _isTerminalOpen = false;
 
-        _attackMoveSpeed = 1;
+        _attackMoveSpeed = ONE;
     }
 }
