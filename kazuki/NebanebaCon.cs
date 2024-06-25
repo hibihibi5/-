@@ -30,7 +30,7 @@ public class NebanebaCon : MonoBehaviour
         if (_extinctionTimeNow <= 0)
         {
             _extinctionTimeNow = _extinctionTime;
-            this.gameObject.transform.position = Vector3.forward * 100;
+            this.gameObject.transform.position = Vector3.zero;
             this.gameObject.GetComponent<NebanebaCon>().enabled = false;
         }
     }

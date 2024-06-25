@@ -1,16 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Cinemachine;
 
 public class PlayerCon : MonoBehaviour
 {
+    #region setVariable
+
     [Header("変数の指定")]
     [Tooltip("プレイヤーの移動速度")]
     [SerializeField] float _playerMoveSpeed = 15f;
     [Tooltip("重力の設定")]
     [SerializeField] Vector3 _playerGravity = new Vector3(0, -200f, 0);
-    [Tooltip("端末画面のTimeScale")]
-    [SerializeField, Range(0, 1)] float _timeScale = 0.2f;
     [Tooltip("プレイヤーの回転速度")]
     [SerializeField] float _rotationSpeed = 900f;
     [Tooltip("攻撃時のプレイヤーの移動速度")]
@@ -19,18 +20,33 @@ public class PlayerCon : MonoBehaviour
     [SerializeField, Range(0, 1)] float _nebanebaSpeed = 0.4f;
     [Tooltip("移動アニメーションの変化の速度")]
     [SerializeField] float _moveAnimeChegeSpeed = 1;
+    [Tooltip("爆弾の設置に掛かる時間")]
+    [SerializeField] float _BombSetTime = default;
+    [Tooltip("爆弾をどこに生成するか")]
+    [SerializeField] float _bombSetPoint = default;
 
+    #endregion
+
+    #region setComponent
 
     [Header("コンポーネント取得")]
     [SerializeField] GameMaster _gameMaster;
     [SerializeField] Camera _terminalCamera;
     [SerializeField] Canvas _terminalCanvas;
     [SerializeField] Canvas _mainCanvas;
+    [Tooltip("カメラ制御オブジェクト")]
+    [SerializeField] private CinemachineVirtualCamera _virtualCamera = default;
 
-    GameObject _virtualCamera;
+    #endregion
+
+    #region component
+
     Rigidbody _rb;
-    Animator _PlayerAnime;
+    Animator _playerAnime;
     Quaternion _targetQuaternion; // 回転制御用
+    TerminalCon _terminalCon = default;
+
+    #endregion
 
     #region variable
 
@@ -42,16 +58,20 @@ public class PlayerCon : MonoBehaviour
     private float _rotationSpeedCount = 0;
     private float _attackMoveSpeed = 1;
     private float _externalSpeed = 1;
+    private float _BombSetTimeNow = default;
     private bool _isMouseOn = false; // マウスの表示切替のbool
     private bool _isTerminalOpen = false; // 端末切替のbool
+    private bool _isAttack = false;
+    private bool _isBombSet = false;
 
     #endregion
 
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _virtualCamera = GameObject.FindGameObjectWithTag("Virtual Camera");
-        _PlayerAnime = this.gameObject.GetComponent<Animator>();
+        _playerAnime = this.gameObject.GetComponent<Animator>();
+        _terminalCon = _terminalCanvas.gameObject.GetComponent<TerminalCon>();
+
     }
 
     private void Start()
@@ -80,11 +100,16 @@ public class PlayerCon : MonoBehaviour
 
         // 攻撃処理
         AttackCon();
+
+        // 爆弾の設置開始処理
+        BombSetStart();
     }
 
     private void FixedUpdate()
     {
         _rb.AddForce(_playerGravity, ForceMode.Acceleration); // 重力処理
+
+        BombSet();
     }
 
     private void OnTriggerStay(Collider other)
@@ -105,7 +130,7 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void PlayerMove()
     {
-        if (!_isTerminalOpen)
+        if (!_isTerminalOpen && !_isBombSet && !_gameMaster.SetPouseBool())
         {
             _horizontalInput = Input.GetAxisRaw("Horizontal");
             _verticalInput = Input.GetAxisRaw("Vertical");
@@ -145,7 +170,7 @@ public class PlayerCon : MonoBehaviour
             }
         }
 
-        _PlayerAnime.SetFloat("Speed", _inputSpeed); // 移動アニメーションの再生
+        _playerAnime.SetFloat("Speed", _inputSpeed); // 移動アニメーションの再生
         transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetQuaternion, _rotationSpeedCount); // 回転速度の制限
     }
 
@@ -155,9 +180,9 @@ public class PlayerCon : MonoBehaviour
     private void TerminalOpen()
     {
         // Eキーを押すと端末画面切替
-        if (Input.GetKeyDown(KeyCode.E) && (Time.timeScale != 0))
+        if (Input.GetKeyDown(KeyCode.E) && !_gameMaster.SetPouseBool())
         {
-            if (!_isTerminalOpen) // アクティブ状態
+            if (!_isTerminalOpen && !_isBombSet) // アクティブ状態
             {
                 _isTerminalOpen = true;
                 _gameMaster.GetTerminalOpen(_isTerminalOpen); // 端末状態の送信
@@ -170,7 +195,7 @@ public class PlayerCon : MonoBehaviour
                 MouseDisplay();
                 // off
                 _mainCanvas.enabled = false; // メインキャンバス
-                _virtualCamera.SetActive(false); // カメラのコントロール
+                _virtualCamera.enabled = false; // カメラのコントロール
                 _horizontalInput = 0;
                 _verticalInput = 0;
             }
@@ -182,7 +207,7 @@ public class PlayerCon : MonoBehaviour
 
                 // on
                 _mainCanvas.enabled = true; // メインキャンバス
-                _virtualCamera.SetActive(true); // カメラのコントロール
+                _virtualCamera.enabled=true; // カメラのコントロール
                 // off
                 _terminalCamera.enabled = false; // カメラ
                 _terminalCanvas.enabled = false; // 端末キャンバス
@@ -197,12 +222,6 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     private void MouseDisplay()
     {
-        ////Pキーを押すとマウスの表示切替
-        //if (Input.GetKeyDown(KeyCode.P))
-        //{
-        //    _isMouseOn = !_isMouseOn;
-        //}
-
         // マウスの表示処理
         if (_isMouseOn) // 表示
         {
@@ -222,12 +241,15 @@ public class PlayerCon : MonoBehaviour
     private void AttackCon()
     {
         // 端末画面ではない状態で左クリックを押すと
-        if (!_isTerminalOpen && Input.GetMouseButtonDown(0))
+        if (!_isTerminalOpen && !_isAttack && Input.GetMouseButtonDown(0))
         {
-            _isTerminalOpen = true;
-            _PlayerAnime.SetBool("attack", true);
+            if (!_gameMaster.SetPouseBool() && _playerAnime.GetCurrentAnimatorStateInfo(0).IsName("Move"))
+            {
+                _isAttack = true;
+                _playerAnime.SetBool("attack", true);
 
-            _attackMoveSpeed = _setAttackMoveSpeed;
+                _attackMoveSpeed = _setAttackMoveSpeed;
+            }
         }
     }
 
@@ -236,9 +258,52 @@ public class PlayerCon : MonoBehaviour
     /// </summary>
     public void AttackEnd()
     {
-        _PlayerAnime.SetBool("attack", false);
-        _isTerminalOpen = false;
+        _playerAnime.SetBool("attack", false);
+        _isAttack = false;
 
         _attackMoveSpeed = ONE;
+    }
+
+    /// <summary>
+    /// 爆弾の設置開始処理
+    /// </summary>
+    private void BombSetStart()
+    {
+        // 端末画面ではない状態で左クリックを押すと
+        if (!_isTerminalOpen && !_isBombSet && Input.GetMouseButtonDown(1))
+        {
+            if (_terminalCon.GetBombCost() && !_gameMaster.SetPouseBool())
+            {
+                _playerAnime.SetBool("BombSet", true);
+
+                _horizontalInput = 0;
+                _verticalInput = 0;
+                _isBombSet = true;
+                _BombSetTimeNow = _BombSetTime;
+            }
+            else
+            {
+                print("kosutogatarinai");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 爆弾の設置処理
+    /// </summary>
+    private void BombSet()
+    {
+        if (_isBombSet)
+        {
+            _BombSetTimeNow -= Time.deltaTime;
+
+            if (_BombSetTimeNow <= 0)
+            {
+                Instantiate(Resources.Load("Bomb"), this.transform.position + this.transform.forward * _bombSetPoint, this.transform.localRotation);
+
+                _isBombSet = false;
+                _playerAnime.SetBool("BombSet", false);
+            }
+        }
     }
 }

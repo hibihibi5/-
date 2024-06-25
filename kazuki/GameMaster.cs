@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Cinemachine;
 
 public class GameMaster : MonoBehaviour
 {
@@ -14,12 +15,13 @@ public class GameMaster : MonoBehaviour
     [SerializeField, Range(0, 1)] float _terminalTime = default;
 
     [Header("コンポーネント取得")]
-    [Tooltip("")]
+    [Tooltip("カメラ制御オブジェクト")]
+    [SerializeField] private CinemachineVirtualCamera _virtualCamera = default;
 
     private　const float TIME_COUNT = 1; // 等倍速の時間
-    private GameObject _virtualCamera = default;
     private bool _isGame = true; // ゲームが進行しているかどうか
     private bool _isTerminalOpen = false; // 端末が起動しているかどうか
+    private bool _isPause = false; // ポーズ状態かどうか
 
     // public------------------------------------------------------------------------------------------------------------------
 
@@ -64,12 +66,54 @@ public class GameMaster : MonoBehaviour
     }
 
     /// <summary>
-    /// 端末状態のbool取得
+    /// ポーズ状態を解除
+    /// </summary>
+    public void PouseEscape()
+    {
+        if (!_isTerminalOpen) // 通常
+        {
+            NormalTime();
+        }
+        else // 端末
+        {
+            TerminalTime();
+        }
+    }
+
+    /// <summary>
+    /// 端末の状態取得
     /// </summary>
     /// <param name="terminalBool"></param>
     public void GetTerminalOpen(bool terminalBool)
     {
         _isTerminalOpen = terminalBool;
+    }
+
+    /// <summary>
+    /// 端末の状態を返す
+    /// </summary>
+    /// <returns></returns>
+    public bool SetTerminalOpen()
+    {
+        return _isTerminalOpen;
+    }
+
+    /// <summary>
+    /// ポーズの状態取得
+    /// </summary>
+    /// <param name="isPouse"></param>
+    public void GetPouseBool(bool isPouse)
+    {
+        _isPause = isPouse;
+    }
+
+    /// <summary>
+    /// ポーズの状態を返す
+    /// </summary>
+    /// <returns></returns>
+    public bool SetPouseBool()
+    {
+        return _isPause;
     }
 
     /// <summary>
@@ -82,11 +126,6 @@ public class GameMaster : MonoBehaviour
     }
 
     // private--------------------------------------------------------------------------------------------------------------
-
-    private void Awake()
-    {
-        _virtualCamera = GameObject.FindGameObjectWithTag("Virtual Camera");
-    }
 
     private void Start()
     {
@@ -112,9 +151,10 @@ public class GameMaster : MonoBehaviour
         else
         {
             StopTime();
+            print("変更yotei");
             _isGame = false; // ゲームの終了フラグ
             _timeRimitText.text = "0";
-            _virtualCamera.SetActive(false);
+            _virtualCamera.enabled = false;
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
         }
