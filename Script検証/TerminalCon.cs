@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using System;
 using System.Linq;
 using UnityEngine.EventSystems;
+using UniRx;
 using static WallButtonClass;
 
 public class TerminalCon : MonoBehaviour
@@ -30,6 +31,8 @@ public class TerminalCon : MonoBehaviour
     [SerializeField] float _coolTimeOfPowerOut = 0;
 
     [Header("コンポーネント取得")]
+    [Tooltip("ゲームマスターオブジェクト")]
+    [SerializeField] GameMaster _gameMaster;
     [Tooltip("壁を動かすボタンs")]
     [SerializeField] ButtonClass[] _buttonClass = new ButtonClass[4];
     [Tooltip("メイン画面のコスト表示テキスト")]
@@ -60,6 +63,7 @@ public class TerminalCon : MonoBehaviour
     private float _coolTimeCountOfPower = 0; // 現在の停電クールタイム
     private bool _isButtonClick = false; // ボタン処理の判定
     private bool _isNebanebaClick = false;
+    private bool _isPause = false;
 
     // public---------------------------------------------------------------------------------------
 
@@ -123,6 +127,32 @@ public class TerminalCon : MonoBehaviour
         _explosionButton.onClick.AddListener(() => BombExplosion());
 
         _powerOutButton.onClick.AddListener(() => PowerOutage());
+
+        GameTimeManager.OnPaused.Subscribe(x => {
+            foreach (ButtonClass buttonClass in _buttonClass)
+            {
+                buttonClass.button.interactable = false;
+
+                foreach (Animator animator in buttonClass.animator)
+                {
+                    animator.speed = 0;
+                }
+            }
+            _isPause = _gameMaster.SetPouseBool();
+        }).AddTo(this.gameObject);
+
+        GameTimeManager.OnResumed.Subscribe(x => {
+            foreach (ButtonClass buttonClass in _buttonClass)
+            {
+                buttonClass.button.interactable = true;
+
+                foreach (Animator animator in buttonClass.animator)
+                {
+                    animator.speed = 1;
+                }
+            }
+            _isPause = _gameMaster.SetPouseBool();
+        }).AddTo(this.gameObject);
     }
 
     private void Update()
@@ -142,10 +172,13 @@ public class TerminalCon : MonoBehaviour
     /// </summary>
     private void CostDisplayUpdate()
     {
-        _cost += _PointChargeSpeed * Time.deltaTime; // 時間経過で設定した速度でコストが貯まる
-        _cost = Mathf.Clamp(_cost, 0, _maxPoint); // 最大値にクランプ
-        _mainPointText.text = _cost.ToString("F1"); // メインキャンバス
-        _terminalPointText.text = _cost.ToString("F1"); // 端末キャンバス
+        if (!_isPause)
+        {
+            _cost += _PointChargeSpeed * Time.deltaTime; // 時間経過で設定した速度でコストが貯まる
+            _cost = Mathf.Clamp(_cost, 0, _maxPoint); // 最大値にクランプ
+            _mainPointText.text = _cost.ToString("F1"); // メインキャンバス
+            _terminalPointText.text = _cost.ToString("F1"); // 端末キャンバス
+        }
     }
 
     /// <summary>
@@ -153,28 +186,31 @@ public class TerminalCon : MonoBehaviour
     /// </summary>
     private void CoolTimeCount()
     {
-        if (_coolTimeCount > 0)
+        if (!_isPause)
         {
-            _coolTimeCount -= Time.deltaTime;
-        }
-        else
-        {
-            _isButtonClick = false;
-
-            foreach (ButtonClass button in _buttonClass)
+            if (_coolTimeCount > 0)
             {
-                // ボタンの有効化
-                button.button.interactable = true;
+                _coolTimeCount -= Time.deltaTime;
             }
-        }
+            else
+            {
+                _isButtonClick = false;
 
-        if (_coolTimeCountOfPower > 0)
-        {
-            _coolTimeCountOfPower -= Time.deltaTime;
-        }
-        else
-        {
-            _powerOutButton.interactable = true;
+                foreach (ButtonClass button in _buttonClass)
+                {
+                    // ボタンの有効化
+                    button.button.interactable = true;
+                }
+            }
+
+            if (_coolTimeCountOfPower > 0)
+            {
+                _coolTimeCountOfPower -= Time.deltaTime;
+            }
+            else
+            {
+                _powerOutButton.interactable = true;
+            }
         }
     }
 

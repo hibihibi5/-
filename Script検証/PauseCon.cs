@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
 using UnityEngine.InputSystem;
+using UniRx;
 
 public class PauseCon : MonoBehaviour
 {
@@ -35,18 +36,7 @@ public class PauseCon : MonoBehaviour
 
         if (isGame) // 非アクティブ状態
         {
-            _isPause = false;
-            _gameMaster.GetPouseBool(_isPause);
-            _gameMaster.PouseEscape();
-            _pauseCanvas.enabled = false;
-
-            bool isTerminal = _gameMaster.SetTerminalOpen();
-            if (!isTerminal)
-            {
-                Cursor.visible = false;
-                Cursor.lockState = CursorLockMode.Locked;
-                _virtualCamera.enabled = true;
-            }
+            GameTimeManager.Resume();
         }
     }
 
@@ -61,6 +51,36 @@ public class PauseCon : MonoBehaviour
     {
         // 初期化処理
         _pauseCanvas.enabled = false; // ポーズキャンバスの非表示
+        _isPause = true;
+        _gameMaster.GetPouseBool(_isPause);
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        _virtualCamera.enabled = false;
+
+        GameTimeManager.OnPaused.Subscribe(x => {
+            _isPause = true;
+            _terminalCon.OutCancelNebanebaSet();
+            _gameMaster.GetPouseBool(_isPause);
+            _pauseCanvas.enabled = true;
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+            _virtualCamera.enabled = false;
+        }).AddTo(this.gameObject);
+
+        GameTimeManager.OnResumed.Subscribe(x => {
+            _isPause = false;
+            _gameMaster.GetPouseBool(_isPause);
+            _gameMaster.PouseEscape();
+            _pauseCanvas.enabled = false;
+
+            bool isTerminal = _gameMaster.SetTerminalOpen();
+            if (!isTerminal)
+            {
+                Cursor.visible = false;
+                Cursor.lockState = CursorLockMode.Locked;
+                _virtualCamera.enabled = true;
+            }
+        }).AddTo(this.gameObject);
     }
 
     private void Update()
@@ -80,14 +100,7 @@ public class PauseCon : MonoBehaviour
 
             if (isGame && !_isPause) // アクティブ状態
             {
-                _isPause = true;
-                _terminalCon.OutCancelNebanebaSet();
-                _gameMaster.GetPouseBool(_isPause);
-                _gameMaster.StopTime(); // 時間の停止
-                _pauseCanvas.enabled = true;
-                Cursor.visible = true;
-                Cursor.lockState = CursorLockMode.None;
-                _virtualCamera.enabled = false;
+                GameTimeManager.Pause();
             }
             else if (isGame)
             {

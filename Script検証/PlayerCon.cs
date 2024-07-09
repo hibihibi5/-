@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
 using UnityEngine.InputSystem;
+using UniRx;
 
 public class PlayerCon : MonoBehaviour
 {
@@ -103,6 +104,15 @@ public class PlayerCon : MonoBehaviour
         _terminalCanvas.gameObject.GetComponent<TerminalCon>().enabled = true; // 端末操作スクリプトをオフに
 
         _targetQuaternion = transform.rotation;
+
+        GameTimeManager.OnPaused.Subscribe(x => {
+            _playerAnime.speed = 0;
+            _rb.Pause(gameObject);
+        }).AddTo(this.gameObject);
+        GameTimeManager.OnResumed.Subscribe(x => {
+            _playerAnime.speed = 1f;
+            _rb.Resume(gameObject);
+        }).AddTo(this.gameObject);
     }
 
     private void Update()
@@ -164,8 +174,6 @@ public class PlayerCon : MonoBehaviour
             //}
         }
 
-        _rotationSpeedCount = _rotationSpeed * Time.deltaTime;
-
         // 入力しているとき
         if (_horizontalInput != 0 || _verticalInput != 0)
         {
@@ -217,13 +225,16 @@ public class PlayerCon : MonoBehaviour
             //    _inputSpeed += Time.deltaTime * _moveAnimeChegeSpeed;
             //}
 
-            if (_inputSpeed < ONE)
+            if (!GameTimeManager.IsPaused())
             {
-                _inputSpeed += Time.deltaTime * _moveAnimeChegeSpeed;
-            }
-            else
-            {
-                _inputSpeed = ONE;
+                if (_inputSpeed < ONE)
+                {
+                    _inputSpeed += Time.deltaTime * _moveAnimeChegeSpeed;
+                }
+                else
+                {
+                    _inputSpeed = ONE;
+                }
             }
         }
         else
@@ -242,18 +253,25 @@ public class PlayerCon : MonoBehaviour
             //    _inputSpeed -= Time.deltaTime * _moveAnimeChegeSpeed;
             //}
 
-            if (_inputSpeed > 0)
+            if (!GameTimeManager.IsPaused())
             {
-                _inputSpeed -= Time.deltaTime * _moveAnimeChegeSpeed;
-            }
-            else
-            {
-                _inputSpeed = 0;
+                if (_inputSpeed > 0)
+                {
+                    _inputSpeed -= Time.deltaTime * _moveAnimeChegeSpeed;
+                }
+                else
+                {
+                    _inputSpeed = 0;
+                }
             }
         }
 
-        _playerAnime.SetFloat("Speed", _inputSpeed/* * _inputDeshSpeed*/); // 移動アニメーションの再生
-        _rb.MoveRotation(Quaternion.RotateTowards(transform.rotation, _targetQuaternion, _rotationSpeedCount)); // 回転速度の制限
+        if (!GameTimeManager.IsPaused())
+        {
+            _rotationSpeedCount = _rotationSpeed * Time.deltaTime;
+            _playerAnime.SetFloat("Speed", _inputSpeed/* * _inputDeshSpeed*/); // 移動アニメーションの再生
+            _rb.MoveRotation(Quaternion.RotateTowards(transform.rotation, _targetQuaternion, _rotationSpeedCount)); // 回転速度の制限
+        }
     }
 
     /// <summary>
